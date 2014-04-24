@@ -1,3 +1,4 @@
 .sass-cache/
 server/node_modules
 logs/
+npm-debug.log
