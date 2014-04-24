@@ -10,7 +10,8 @@
     }
   ],
   "scripts": {
-    "start": "node app"
+    "start": "node app",
+    "start-prod": "supervisor app"
   },
   "main": "./lib/http-server",
   "repository": {
@@ -32,7 +33,9 @@
     "node-uuid": "~1.4.1",
     "lodash": "~2.4.1",
     "engine.io": "~1.0.4",
-    "winston": "~0.7.2"
+    "winston": "~0.7.2",
+    "redis": "~0.10.1",
+    "supervisor": "*"
   },
   "license": "MIT",
   "engines": {

@@ -16,8 +16,9 @@
     <div class="heading">
       <h1 class="title">2048 - Multiplayer</h1></br>
       <div id="game-stats" style="display:none; float:right">
-        <h5 id="num-players" style="margin: 0">Number of current players: </h5>
-        <h5 id="num-games" style="margin: 0">Number of current games: </h5>
+        <h5 id="num-players" style="margin: 0">Number of current players: <strong></strong></h5>
+        <h5 id="num-waiters" style="margin: 0">Number of current waiters: <strong></strong></h5>
+        <h5 id="num-games" style="margin: 0">Number of current games: <strong></strong></h5>
       </div>
     </div>
     <p class="game-intro">Join the numbers and get to the <strong>2048 tile!</strong> Your square is on the left!</p>
@@ -25,20 +26,33 @@
       <div class="score-container" style="float: left">0</div>
       <div class="" style="margin-top: 15px; position: absolute; left: 50%">
         <div style="position: relative; left: -50%">
-          <!-- <p id="player-msg" style="width: 375px; height: 30px" class="text-center"> -->
-          <p id="player-msg" style="width: 230px; height: 30px" class="text-center">
-            <a id="game-start-btn-simple" class="game-start-btn btn">Find a Competitor</a>
-            <!-- <a id="game-start-btn-friend" class="game-start-btn btn">Play a Friend</a> -->
+          <p id="player-msg" style="width: 575px; height: 30px" class="text-center">
+            <span class="actions" style="width: 100%;">
+
+              <span class="action-random" style="display:none;">
+                <a id="game-start-btn-simple" class="game-start-btn btn">Find a new Competitor</a>
+              </span>
+
+              <span class="action-again-friend" style="display:none;">
+                <a id="game-start-btn-friend" class="game-friend-btn btn">Play again</a>
+              </span>
+
+              <span class="action-wait-friend" style="display:none;">
+                <span id="your-hash">Give your hash <strong></strong> to your friend to start!</span>
+              </span>
+
+            </span>
+            <span class="live" style="width: 100%;"></span>
           </p>
         </div>
       </div>
       <div class="score-container" style="float: right">0</div>
     </div>
     <div class="game-boards">
-      
+
       <div id="player-local" style="display:inline-block">
         <div class="game-container">
-          
+
           <div class="game-message">
             <p></p>
           </div>
@@ -77,7 +91,7 @@
       </div>
       <div id="player-online" style="display:inline-block; float: right;">
         <div class="game-container ">
-          
+
           <div class="game-message">
             <p></p>
           </div>
@@ -112,17 +126,17 @@
           <div class="tile-container">
 
           </div>
-        </div>  
+        </div>
       </div>
     </div>
-    
+
 
     <p class="game-explanation">
       <strong class="important">How to play:</strong> Use your <strong>arrow keys</strong> to move the tiles. When two tiles with the same number touch, they <strong>merge into one!</strong>
     </p>
     <hr>
     <p>
-     Created by <a href="http://gabrielecirulli.com" target="_blank">Gabriele Cirulli.</a> Based on <a href="https://itunes.apple.com/us/app/1024!/id823499224" target="_blank">1024 by Veewo Studio.</a>  Multiplayer added by <a href="http://stolarsky.com" target="_blank">Emil Stolarsky.</a> 
+     Created by <a href="http://gabrielecirulli.com" target="_blank">Gabriele Cirulli.</a> Based on <a href="https://itunes.apple.com/us/app/1024!/id823499224" target="_blank">1024 by Veewo Studio.</a>  Multiplayer added by <a href="http://stolarsky.com" target="_blank">Emil Stolarsky.</a>
     </p>
   </div>
   <!-- Libraries JS -->
@@ -132,6 +146,8 @@
   <script src="libs/vex-2.0.1/js/vex.combined.min.js"></script>
 
   <!-- Game JS -->
+  <script src="config.js"></script>
+  <script src="js/utils.js"></script>
   <script src="js/online_input_manager.js"></script>
   <script src="js/keyboard_input_manager.js"></script>
   <script src="js/html_actuator.js"></script>
