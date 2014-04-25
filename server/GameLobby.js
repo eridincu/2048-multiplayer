@@ -33,10 +33,7 @@ GameLobby.prototype.setup = function (player, playerNum) {
   });
 
   player.on('close', function () {
-    player.write(JSON.stringify({player: 0, dead: true}));
-    self.player1.close();
-    self.player2.close();
-    self.cleanup(self.id);
+    self.emit(JSON.stringify({ player: 0, dead: true, gameEnd: true }));
   });
 };
 
@@ -44,11 +41,10 @@ GameLobby.prototype.emit = function (msg) {
 	this.player1.write(msg);
 	this.player2.write(msg);
 
-	if (msg.gameEnd) {
-		this.player1.close();
-		this.player2.close();
+  msg = JSON.parse(msg);
+
+	if (msg.gameEnd)
 		this.cleanup(this.id);
-	}
 };
 
 module.exports = GameLobby;

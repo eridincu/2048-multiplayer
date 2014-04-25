@@ -34,6 +34,7 @@
     "lodash": "~2.4.1",
     "engine.io": "~1.0.4",
     "winston": "~0.7.2",
+    "redis": "~0.10.1",
     "supervisor": "*"
   },
   "license": "MIT",

@@ -16,10 +16,11 @@ var http = require('http'),
     channelHashMap = {},
     channelId;
 
-var CROSS_ORIGIN_HEADERS = {};
-CROSS_ORIGIN_HEADERS['Content-Type'] = 'text/plain';
-CROSS_ORIGIN_HEADERS['Access-Control-Allow-Origin'] = '*';
-CROSS_ORIGIN_HEADERS['Access-Control-Allow-Headers'] = 'X-Requested-With';
+var CROSS_ORIGIN_HEADERS = {
+  'Content-Type': 'text/plain',
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'X-Requested-With'
+};
 
 var sockjsServer = sockjs.createServer();
 sockjsServer.setMaxListeners(0);
@@ -28,17 +29,16 @@ var GRID_SIZE = 4;
 var cleanup = function (channelId) {
 	if (channelHashMap[channelId]) {
 		winston.info('===Game #' + channelId + ' Cleanup===');
-
-		gamersHashMap[channelHashMap[channelId].player1.id] = void 0;
-		gamersHashMap[channelHashMap[channelId].player2.id] = void 0;
-		channelHashMap[channelId] = void 0;
+		delete channelHashMap[channelId];
 		gamesBeingPlayed--;
+    showStats();
 	}
 };
 
-sockjsServer.on('connection', function(io) {
+sockjsServer.on('connection', function (io) {
   client.lpush('players', io.id);
   players++;
+
   winston.info('New player joined');
 	showStats();
 
@@ -56,6 +56,7 @@ sockjsServer.on('connection', function(io) {
   		case 'find-opponent':
   			client.lpush('waiters', io.id);
   			waiters++;
+        findRandomOpponent();
 				winston.info('New waiter is waiting (duh)');
 				showStats();
 				break;
@@ -65,17 +66,18 @@ sockjsServer.on('connection', function(io) {
 					return;
 				}
 
-				channelId = uuid.v4();
 				winston.log('o/ found your friend, match is starting!');
-        channelHashMap[channelId] = startGame(channelId, io, playersPublicHashMap[data.hash.toLowerCase()]);
+        startGame(channelId, io, playersPublicHashMap[data.hash.toLowerCase()]);
+      case 'cleanup':
+        break;
 			default:
 				winston.info('Uncaught event `' + data.event + '` received');
 				break;
   	}
   });
 
-  io.on('close', function() {
-  	client.lrem('players', 0, io.id, function (err, count) {
+  io.on('close', function () {
+  	client.lrem('players', 0, io.id, function (err) {
   		if (err) {
 				winston.log('err', err);
 				return;
@@ -134,8 +136,10 @@ var startCellLocations = function (numLocations, size) {
   return loc;
 };
 
-setInterval(function () {
+// todo: handle concurency ?
+var findRandomOpponent = function () {
   client.llen('waiters', function (err, len) {
+    winston.info('find random, with len: ' + len);
     if (err) winston.log('err', err);
     if (len >= 2) {
       client.lpop('waiters', function (err1, player1) {
@@ -144,19 +148,20 @@ setInterval(function () {
         client.lpop('waiters', function (err2, player2) {
           if (err2) winston.log('err', err2);
           waiters--;
-          channelId = uuid.v4();
-          channelHashMap[channelId] = startGame(channelId, gamersHashMap[player1], gamersHashMap[player2]);
+          startGame(gamersHashMap[player1], gamersHashMap[player2]);
         });
       });
     }
   });
-}, 500);
+};
 
-var startGame = function (channelId, ioPlayer1, ioPlayer2) {
+var startGame = function (ioPlayer1, ioPlayer2) {
   gamesBeingPlayed++;
-  winston.info('=== New Game #' + channelId + ' started ===');
+  var channelId = uuid.v4();
+  channelHashMap[channelId] = new GameLobby(channelId, ioPlayer1, ioPlayer2, startCellLocations(2, GRID_SIZE), GRID_SIZE, cleanup);
 
-  return new GameLobby(channelId, ioPlayer1, ioPlayer2, startCellLocations(2, GRID_SIZE), GRID_SIZE, cleanup);
+  winston.info('=== New Game #' + channelId + ' started ===');
+  showStats();
 };
 
 var server = http.createServer(function (req, res) {
@@ -171,13 +176,12 @@ var server = http.createServer(function (req, res) {
     return res.end();
   }
 
-
   res.writeHead(200, {'Content-Type': 'text/html'});
   res.end('Go away <3');
 });
 
 var showStats = function () {
-  winston.info('Total players: ' + players + ' | Total waiters: ' + waiters);
+  winston.info('Total players: ' + players + ' | Total waiters: ' + waiters + ' | Total games: ' + gamesBeingPlayed);
 };
 
 sockjsServer.installHandlers(server, { prefix: '/game/sockets' });

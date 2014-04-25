@@ -1,3 +1,4 @@
 window.Config = {
-  sockjsBaseUrl: 'http://localhost:3000'
+  sockjsBaseUrl: 'http://localhost:3000',
+  defaultGameDuration: 120 // in seconds
 };
