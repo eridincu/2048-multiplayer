@@ -1,5 +1,5 @@
 window.hash = function(size) {
-  var chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghiklmnopqrstuvwxyz',
+  var chars = '123456789ABCDEFGHJKPQRSTUVWXYZabcdefghkpqrstuvwxyz',
     len = chars.length,
     hash = '';
   size = !isNaN(size) ? Math.max(size, 3) : 3;

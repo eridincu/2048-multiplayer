@@ -1,8 +1,13 @@
 document.addEventListener("DOMContentLoaded", function () {
 	var	userHash = window.hash(4);
   var waitingInterval, userNumInterval;
-  var sockjs_url = 'http://localhost:3000/game/sockets', sockjs, multiplexer;
   var registered = false;
+  var friendHash = false;
+
+  if (!window.Config)
+  	throw new Error('config file must be present');
+
+  var sockjs_url = window.Config.sockjsBaseUrl + '/game/sockets', sockjs, multiplexer;
 
   	// Wait till the browser is ready to render the game (avoids glitches)
  	window.requestAnimationFrame(function () {
@@ -12,13 +17,13 @@ document.addEventListener("DOMContentLoaded", function () {
 	  vex.defaultOptions.className = 'vex-theme-default';
 	  	vex.dialog.open({
 		    message: 'Welcome to 2048 multiplayer! Use your 2048 skills to beat opponents! <div>\n</div><strong>How it works:</strong><ul><li>You only get 2 minutes</li><li>If you can\'t make anymore legal moves, you lose</li><li>Winner is decided by highest score or by who reaches 2048 first</li></ul> Good luck and may the squares be with you!',
-		    contentCSS: { width: '750px' },
+		    contentCSS: { width: '940px' },
 				buttons: [
 		        $.extend({}, vex.dialog.buttons.NO, { className: 'vex-dialog-button-primary', text: 'Give us a Tweet', click: function($vexContent, event) {
 		            $vexContent.data().vex.value = 'tweet-btn';
 		            vex.close($vexContent.data().vex.id);
 		        }}),
-		        $.extend({}, vex.dialog.buttons.NO, { className: 'vex-dialog-button-2048-friend game-friend-btn', text: 'Play a Friend', click: function($vexContent, event) {
+		        $.extend({}, vex.dialog.buttons.NO, { className: 'vex-dialog-button-2048-friend game-friend-btn', text: 'Play with a Friend', click: function($vexContent, event) {
 		            $vexContent.data().vex.value = '2048-friend';
 		            vex.close($vexContent.data().vex.id);
 		        }}),
@@ -39,13 +44,15 @@ document.addEventListener("DOMContentLoaded", function () {
 	 	var startNewGame = function () {
 	 		$('.game-start-btn').on('click', function () {
 				$('#player-msg').removeClass('text-center');
-				$('#player-msg').html('<span style="float:left">Searching for competitor </span>\n<span class="ellipsis">.</span>\n<span class="ellipsis">.</span>\n<span class="ellipsis">.</span>');
+				$('#player-msg .actions').fadeOut();
+				$('#player-msg .live').html('<span style="float:left">Searching for competitor </span>\n<span class="ellipsis">.</span>\n<span class="ellipsis">.</span>\n<span class="ellipsis">.</span>');
 				gameStats();
 				startGame();
 			});
 
 			$('.game-friend-btn').on('click', function () {
 				vex.dialog.confirm({
+			    contentCSS: { width: '550px' },
 					buttons: [
 						$.extend({}, vex.dialog.buttons.YES, { className: 'vex-dialog-button-primary', text: 'Host game', click: function($vexContent, event) {
 		            $vexContent.data().vex.value = 'host';
@@ -59,10 +66,10 @@ document.addEventListener("DOMContentLoaded", function () {
 					callback: function (value) {
 						if ('join' === value) {
 							vex.dialog.prompt({
-			      		message: 'hash',
+			      		message: 'Find your friend',
 			      		placeholder: 'Your friend unique hash here',
 			      		callback: function (value) {
-			      			console.log('friend hash: ' + value);
+			      			window.friendHash = value;
 									gameStats();
 			      			startGame(value);
 			      		}
@@ -144,8 +151,8 @@ document.addEventListener("DOMContentLoaded", function () {
 			window._io.addOneTimeListener(function (msg) {
 			  clearInterval(waitingInterval);
 				clearInterval(userNumInterval);
-				$('#player-msg').addClass('text-center');
-			    $('#player-msg').html('Opponent Found!');
+					$('#player-msg .actions').fadeOut();
+			    $('#player-msg .live').html('Opponent Found!');
 			    setTimeout(function () {
 			    	window._io.player = {};
 			    	window._io.player['1'] = 0;
@@ -155,19 +162,18 @@ document.addEventListener("DOMContentLoaded", function () {
 				    var times = 3;
 				    var countdown = setInterval(function() {
 						// Countdown messages
-						$('#player-msg').removeClass('text-center');
-				   		$('#player-msg').html('<div style="text-align: center">Game Will start in <strong>' + times + '</strong></div>');
+				   		$('#player-msg .live').html('<div style="text-align: center">Game Will start in <strong>' + times + '</strong></div>');
 				   		times--;
 				   		if (times === -1) {
 				   			clearInterval(countdown);
-				   			$('#player-msg').html('<div style="text-align: center"><strong> BEGIN!</strong></div>');
+				   			$('#player-msg .live').html('<div style="text-align: center"><strong> BEGIN!</strong></div>');
 				   			var localManager = new GameManager({size: window._gameBoard.size, startTiles: window._gameBoard.startTiles, player: window._gameBoard.player, otherPlayer: opposingPlayer, online: false}, KeyboardInputManager, HTMLActuator, io),
 				    			onlineManager = new GameManager({size: window._gameBoard.size, startTiles: window._gameBoard.startTiles, player: opposingPlayer, otherPlayer: window._gameBoard.player, online: true}, OnlineInputManager, HTMLActuator, io);
 
 				    		var gameOver = function (timer, message, connectionIssue) {
 								message = message || 'Game over!';
 								clearInterval(timer);
-								$('#player-msg').html('<div id="timer"><strong>' + message + '</strong></div>');
+								$('#player-msg .live').html('<div id="timer"><strong>' + message + '</strong></div>');
 								window._io.gameOver = true;
 								/*if (connectionIssue) {
 									localManager.actuate();
@@ -176,14 +182,13 @@ document.addEventListener("DOMContentLoaded", function () {
 								localManager.actuate();
 								onlineManager.actuate();
 								setTimeout(function () {
-									$('#player-msg').fadeOut();
+									$('#player-msg .live').fadeOut();
 								}, 1000);
 								setTimeout(function () {
-									$('#player-msg').html('');
-									$('#player-msg').fadeIn();
+									$('#player-msg .live').html('');
+									$('#player-msg .actions').fadeIn();
 								}, 1500);
 								setTimeout(function () {
-									$('#player-msg').html('<a id="" class="btn game-start-btn">Find a Competitor!</a>');
 									startNewGame();
 									window._io.clearListeners();
 									io.close();
@@ -204,7 +209,7 @@ document.addEventListener("DOMContentLoaded", function () {
     						else
     						 	sec = gameTimeLeft % 60;
       						var min = Math.floor(gameTimeLeft/60);
-			   				$('#player-msg').html('<div id="timer"><strong>' + min + ':' + sec + '</strong></div>');
+			   				$('#player-msg .live').html('<div id="timer"><strong>' + min + ':' + sec + '</strong></div>');
 			   				gameTimeLeft--;
 			   				if (gameTimeLeft === -1) {
 			   					gameOver(timer);

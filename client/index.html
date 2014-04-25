@@ -27,10 +27,12 @@
       <div class="" style="margin-top: 15px; position: absolute; left: 50%">
         <div style="position: relative; left: -50%">
           <p id="player-msg" style="width: 575px; height: 30px" class="text-center">
-          <!-- <p id="player-msg" style="width: 230px; height: 30px" class="text-center"> -->
-            <a id="game-start-btn-simple" class="game-start-btn btn">Find a Competitor</a>
-            <a id="game-start-btn-friend" class="game-friend-btn btn">Play a Friend</a>
-            <span id="your-hash">Your hash: <strong></strong></span>
+            <span class="actions" style="width: 100%;">
+              <a id="game-start-btn-simple" class="game-start-btn btn">Find a Competitor</a>
+              <a id="game-start-btn-friend" class="game-friend-btn btn">Play with a Friend</a>
+              <span id="your-hash">Your hash: <strong></strong></span>
+            </span>
+            <span class="live" style="width: 100%;"></span>
           </p>
         </div>
       </div>
@@ -134,6 +136,7 @@
   <script src="libs/vex-2.0.1/js/vex.combined.min.js"></script>
 
   <!-- Game JS -->
+  <script src="config.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/online_input_manager.js"></script>
   <script src="js/keyboard_input_manager.js"></script>

@@ -50,7 +50,7 @@ sockjsServer.on('connection', function(io) {
 
   	switch (data.event) {
   		case 'register':
-  			playersPublicHashMap[data.hash] = io;
+  			playersPublicHashMap[data.hash.toLowerCase()] = io;
   			winston.info('New room registered: ' + data.hash);
   			break;
   		case 'find-opponent':
@@ -60,14 +60,14 @@ sockjsServer.on('connection', function(io) {
 				showStats();
 				break;
 			case 'play-friend':
-				if (!playersPublicHashMap[data.hash]) {
-					winston.info('Player ' + data.hash + ' not found.');
+				if (!playersPublicHashMap[data.hash.toLowerCase()]) {
+					winston.info('Player ' + data.hash.toLowerCase() + ' not found.');
 					return;
 				}
 
 				channelId = uuid.v4();
 				winston.log('o/ found your friend, match is starting!');
-        channelHashMap[channelId] = startGame(channelId, io, playersPublicHashMap[data.hash]);
+        channelHashMap[channelId] = startGame(channelId, io, playersPublicHashMap[data.hash.toLowerCase()]);
 			default:
 				winston.info('Uncaught event `' + data.event + '` received');
 				break;
