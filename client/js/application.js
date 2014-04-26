@@ -78,7 +78,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 placeholder: 'Your friend unique hash here',
                 callback: function (value) {
                   friendHash = value;
-                  gameStats();
                   startGame(value);
                 }
               });
@@ -87,7 +86,6 @@ document.addEventListener("DOMContentLoaded", function () {
             }
 
             $('.action-wait-friend').show();
-            gameStats();
             startGame(null);
           }
         });
@@ -125,6 +123,10 @@ document.addEventListener("DOMContentLoaded", function () {
       window.io.onmessage = function (event) {
         var msg = JSON.parse(event.data);
         console.log('message:', msg);
+
+        if (msg.stats) {
+          return gameStats(msg);
+        }
 
         for (var i = 0, len = window._io.listeners.length; i < len; i++) {
           window._io.listeners[i](msg);
@@ -243,7 +245,6 @@ document.addEventListener("DOMContentLoaded", function () {
     var gameOver = function (timer, message) {
       message = message || 'Game over!';
       clearInterval(timer);
-      gameStats();
 
       $('#player-msg .live').html('<div id="timer"><strong>' + message + '</strong></div>');
       window._io.gameOver = true;
@@ -287,19 +288,11 @@ document.addEventListener("DOMContentLoaded", function () {
       }, 3000);
     };
 
-    var gameStats = function () {
-      if (false !== userNumInterval)
-        return;
-
+    var gameStats = function (data) {
       $('#game-stats').fadeIn();
-      userNumInterval = setInterval(function () {
-        $.get(window.Config.sockjsBaseUrl + '/game/players', function (data) {
-          data = JSON.parse(data);
-          $('#num-players strong').text(data.numPlayers);
-          $('#num-waiters strong').text(data.numWaiters);
-          $('#num-games strong').text(data.numGames);
-        });
-      }, 1000);
+      $('#num-players strong').text(data.numPlayers);
+      $('#num-waiters strong').text(data.numWaiters);
+      $('#num-games strong').text(data.numGames);
     };
 
     $('#your-hash strong').text(userHash);
@@ -310,7 +303,6 @@ document.addEventListener("DOMContentLoaded", function () {
         $('#player-msg .actions').fadeOut();
         $('#player-msg .live').fadeIn();
         $('#player-msg .live').html('<div style="text-align:center">Searching for competitor...</div>');
-        gameStats();
         startGame();
       });
 

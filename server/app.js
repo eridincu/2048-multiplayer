@@ -14,8 +14,11 @@ var http = require('http'),
     playersReversePublicHashMap = {},
     players = 0,
     waiters = 0,
-    channelHashMap = {},
-    channelId;
+    channelHashMap = {};
+
+// ensure there is no garbage in Redis from previous sessions
+client.del('players');
+client.del('waiters');
 
 var CROSS_ORIGIN_HEADERS = {
   'Content-Type': 'text/plain',
@@ -28,50 +31,50 @@ sockjsServer.setMaxListeners(0);
 var GRID_SIZE = 4;
 
 var cleanup = function (channelId) {
-	if (channelHashMap[channelId]) {
-		winston.info('===Game #' + channelId + ' Cleanup===');
-		delete channelHashMap[channelId];
-		gamesBeingPlayed--;
+  if (channelHashMap[channelId]) {
+    winston.info('===Game #' + channelId + ' Cleanup===');
+    delete channelHashMap[channelId];
+    gamesBeingPlayed--;
     showStats();
-	}
+  }
 };
 
 sockjsServer.on('connection', function (io) {
   client.lpush('players', io.id);
   players++;
 
-  winston.info('New player joined');
-	showStats();
+  winston.info('New player joined: ' + io.id);
+  showStats();
 
   io.on('data', function (data) {
-  	data = JSON.parse(data);
+    data = JSON.parse(data);
 
-  	if (!data.event)
-  		return;
+    if (!data.event)
+      return;
 
-  	switch (data.event) {
-  		case 'register':
+    switch (data.event) {
+      case 'register':
         playersPublicHashMap[data.hash.toLowerCase()] = io;
-  			playersReversePublicHashMap[io.id] = data.hash;
-  			winston.info('New room registered: ' + data.hash);
-  			break;
-  		case 'find-opponent':
-  			client.lpush('waiters', io.id);
-  			waiters++;
+        playersReversePublicHashMap[io.id] = data.hash;
+        winston.info('New room registered: ' + data.hash);
+        break;
+      case 'find-opponent':
+        client.lpush('waiters', io.id);
+        waiters++;
         findRandomOpponent();
-				winston.info('New waiter is waiting (duh)');
-				showStats();
-				break;
-			case 'play-friend':
+        winston.info('New waiter is waiting (duh)');
+        showStats();
+        break;
+      case 'play-friend':
         if (!data.hash || !data.hash.length)
           return;
 
-				if (!playersPublicHashMap[data.hash.toLowerCase()]) {
-					winston.info('Player ' + data.hash.toLowerCase() + ' not found.');
-					return;
-				}
+        if (!playersPublicHashMap[data.hash.toLowerCase()]) {
+          winston.info('Player ' + data.hash.toLowerCase() + ' not found.');
+          return;
+        }
 
-				winston.info('o/ found your friend, match is starting!');
+        winston.info('o/ found your friend, match is starting!');
 
         playersPublicHashMap[data.hash.toLowerCase()].write(JSON.stringify({
           friendHash: playersReversePublicHashMap[io.id],
@@ -79,39 +82,40 @@ sockjsServer.on('connection', function (io) {
         }));
 
         startGame(io, playersPublicHashMap[data.hash.toLowerCase()]);
+        break;
       case 'cleanup':
         break;
-			default:
-				winston.info('Uncaught event `' + data.event + '` received');
-				break;
-  	}
+      default:
+        winston.info('Uncaught event `' + data.event + '` received');
+        break;
+    }
   });
 
   io.on('close', function () {
-  	client.lrem('players', 0, io.id, function (err) {
-  		if (err) {
-				winston.log('err', err);
-				return;
-  		}
+    client.lrem('players', 0, io.id, function (err) {
+      if (err) {
+        winston.log('err', err);
+        return;
+      }
 
-  		winston.info('Removed players from waiting queue');
-  		players--;
-			showStats();
-  	});
+      winston.info('Removed players from waiting queue');
+      players--;
+      showStats();
+    });
 
-  	client.lrem('waiters', 0, io.id, function (err, count) {
-  		if (err) {
-  			winston.log('err', err);
-  			return;
-  		}
+    client.lrem('waiters', 0, io.id, function (err, count) {
+      if (err) {
+        winston.log('err', err);
+        return;
+      }
 
-  		if (count === 0)
-  			return;
+      if (count === 0)
+        return;
 
-  		winston.info('Removed waiter from waiting queue');
-  		waiters--;
-			showStats();
-		});
+      winston.info('Removed waiter from waiting queue');
+      waiters--;
+      showStats();
+    });
   });
 
   gamersHashMap[io.id] = io;
@@ -133,15 +137,15 @@ var startCellLocations = function (numLocations, size) {
   var loc = [];
   for (var i = 0; i < numLocations; i++) {
     var obj = {
-    	x: getRandomInt(0, size - 1),
-    	y: getRandomInt(0, size - 1),
-    	value: (Math.random() < 0.9 ? 2 : 4)
+      x: getRandomInt(0, size - 1),
+      y: getRandomInt(0, size - 1),
+      value: (Math.random() < 0.9 ? 2 : 4)
     };
 
     if (unique(loc, obj))
-			loc.push(obj);
+      loc.push(obj);
     else
-			--i;
+      --i;
   }
 
   return loc;
@@ -150,7 +154,6 @@ var startCellLocations = function (numLocations, size) {
 // todo: handle concurency ?
 var findRandomOpponent = function () {
   client.llen('waiters', function (err, len) {
-    winston.info('find random, with len: ' + len);
     if (err) winston.log('err', err);
     if (len >= 2) {
       client.lpop('waiters', function (err1, player1) {
@@ -166,12 +169,33 @@ var findRandomOpponent = function () {
   });
 };
 
-var startGame = function (ioPlayer1, ioPlayer2) {
-  gamesBeingPlayed++;
-  var channelId = uuid.v4();
-  channelHashMap[channelId] = new GameLobby(channelId, ioPlayer1, ioPlayer2, startCellLocations(2, GRID_SIZE), GRID_SIZE, cleanup);
+var pushStats = function (stats, index) {
+  if ('undefined' === typeof index) {
+    client.llen('players', function (err, len) {
+      if (err) winston.log('err', err);
+      pushStats(stats, len - 1);
+    });
+    return;
+  }
 
-  winston.info('=== New Game #' + channelId + ' started ===');
+  if (-1 === index) {
+    return;
+  }
+
+  client.lindex('players', index, function (err, ioId) {
+    if (err) winston.log('err', err);
+    winston.info('Broacasting stats to ' + ioId);
+    gamersHashMap[ioId].write(stats);
+    pushStats(stats, index - 1);
+  });
+};
+
+var startGame = function (io1, io2) {
+  var id = uuid.v4();
+  channelHashMap[id] = new GameLobby(id, io1, io2,startCellLocations(2, GRID_SIZE), GRID_SIZE, cleanup);
+  winston.info('=== New Game #' + id + ' started ===');
+
+  gamesBeingPlayed++;
   showStats();
 };
 
@@ -179,9 +203,9 @@ var server = http.createServer(function (req, res) {
   if (url.parse(req.url).pathname === '/game/players') {
     res.writeHead(200, CROSS_ORIGIN_HEADERS);
     res.write(JSON.stringify({
-    	numPlayers: players,
-    	numWaiters: waiters,
-    	numGames: gamesBeingPlayed
+      numPlayers: players,
+      numWaiters: waiters,
+      numGames: gamesBeingPlayed
     }));
 
     return res.end();
@@ -192,6 +216,13 @@ var server = http.createServer(function (req, res) {
 });
 
 var showStats = function () {
+  pushStats(JSON.stringify({
+    stats: true,
+    numPlayers: players,
+    numWaiters: waiters,
+    numGames: gamesBeingPlayed
+  }));
+
   winston.info('Total players: ' + players + ' | Total waiters: ' + waiters + ' | Total games: ' + gamesBeingPlayed);
 };
 
