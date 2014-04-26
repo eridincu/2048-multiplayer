@@ -11,6 +11,7 @@ var http = require('http'),
     gamersHashMap = {},
     gamesBeingPlayed = 0,
     playersPublicHashMap = {},
+    playersReversePublicHashMap = {},
     players = 0,
     waiters = 0,
     channelHashMap = {},
@@ -50,7 +51,8 @@ sockjsServer.on('connection', function (io) {
 
   	switch (data.event) {
   		case 'register':
-  			playersPublicHashMap[data.hash.toLowerCase()] = io;
+        playersPublicHashMap[data.hash.toLowerCase()] = io;
+  			playersReversePublicHashMap[io.id] = data.hash;
   			winston.info('New room registered: ' + data.hash);
   			break;
   		case 'find-opponent':
@@ -61,13 +63,22 @@ sockjsServer.on('connection', function (io) {
 				showStats();
 				break;
 			case 'play-friend':
+        if (!data.hash || !data.hash.length)
+          return;
+
 				if (!playersPublicHashMap[data.hash.toLowerCase()]) {
 					winston.info('Player ' + data.hash.toLowerCase() + ' not found.');
 					return;
 				}
 
-				winston.log('o/ found your friend, match is starting!');
-        startGame(channelId, io, playersPublicHashMap[data.hash.toLowerCase()]);
+				winston.info('o/ found your friend, match is starting!');
+
+        playersPublicHashMap[data.hash.toLowerCase()].write(JSON.stringify({
+          friendHash: playersReversePublicHashMap[io.id],
+          newFriendGame: true
+        }));
+
+        startGame(io, playersPublicHashMap[data.hash.toLowerCase()]);
       case 'cleanup':
         break;
 			default:

@@ -4,8 +4,7 @@ document.addEventListener("DOMContentLoaded", function () {
     userNumInterval = false,
     registered = false,
     friendHash = false,
-    sockjs,
-    multiplexer;
+    friendGame = false;
 
   if (!window.Config)
     throw new Error('config file must be present');
@@ -26,84 +25,80 @@ document.addEventListener("DOMContentLoaded", function () {
             $vexContent.data().vex.value = 'tweet-btn';
             vex.close($vexContent.data().vex.id);
         }}),
-        $.extend({}, vex.dialog.buttons.NO, { className: 'vex-dialog-button-2048-friend game-friend-btn', text: 'Play with a Friend', click: function ($vexContent, event) {
-            $vexContent.data().vex.value = '2048-friend';
+        $.extend({}, vex.dialog.buttons.NO, { className: 'vex-dialog-button-2048-friend game-friend-btn', text: 'Play with a friend', click: function ($vexContent, event) {
+            $vexContent.data().vex.value = 'friend';
             vex.close($vexContent.data().vex.id);
         }}),
-        $.extend({}, vex.dialog.buttons.NO, { className: 'vex-dialog-button-2048-simple game-start-btn', text: 'Find a Competitor', click: function ($vexContent, event) {
-            $vexContent.data().vex.value = '2048-simple';
+        $.extend({}, vex.dialog.buttons.NO, { className: 'vex-dialog-button-2048-simple game-start-btn', text: 'Find a random opponent', click: function ($vexContent, event) {
+            $vexContent.data().vex.value = 'random';
             vex.close($vexContent.data().vex.id);
         }})
       ],
       callback: function(value) {
+        if (value === 'random') {
+          $('.action-random').show();
+
+          return;
+        }
+
         if (value === 'tweet-btn') {
           var tweetUrl = 'http://twitter.com/share?url=http%3A%2F%2Fbit.ly%2F1lFJnDg&text=Bet%20you%20can%27t%20beat%20me%20in%202048%20Multiplayer!&via=EmilStolarsky';
           window.open(tweetUrl, '_blank').focus();
+
           return;
         }
-      }
-    });
 
-    var startNewGame = function () {
-      $('.game-start-btn').on('click', function () {
-        $('#player-msg').removeClass('text-center');
-        $('#player-msg .actions').fadeOut();
-        $('#player-msg .live').html('<span style="float:left">Searching for competitor </span>\n<span class="ellipsis">.</span>\n<span class="ellipsis">.</span>\n<span class="ellipsis">.</span>');
-        gameStats();
-        startGame();
-      });
-
-      $('.game-friend-btn').on('click', function () {
         vex.dialog.confirm({
           contentCSS: { width: '550px' },
           message: 'Please choose',
           buttons: [
-            $.extend({}, vex.dialog.buttons.YES, { className: 'vex-dialog-button-primary', text: 'Host game', click: function($vexContent, event) {
+            $.extend({}, vex.dialog.buttons.YES, {
+              className: 'vex-dialog-button-primary',
+              text: 'Host game',
+              click: function ($vexContent) {
                 $vexContent.data().vex.value = 'host';
                 vex.close($vexContent.data().vex.id);
-            }}),
-            $.extend({}, vex.dialog.buttons.NO, { className: 'vex-dialog-button-primary', text: 'Join your friend', click: function($vexContent, event) {
+              }
+            }),
+            $.extend({}, vex.dialog.buttons.NO, {
+              className: 'vex-dialog-button-primary',
+              text: 'Join your friend',
+              click: function ($vexContent) {
                 $vexContent.data().vex.value = 'join';
                 vex.close($vexContent.data().vex.id);
-            }})
+              }
+            })
           ],
           callback: function (value) {
+            friendGame = true;
+
             if ('join' === value) {
               vex.dialog.prompt({
                 message: 'Find your friend',
                 placeholder: 'Your friend unique hash here',
                 callback: function (value) {
-                  window.friendHash = value;
+                  friendHash = value;
                   gameStats();
                   startGame(value);
                 }
               });
+
               return;
             }
 
+            $('.action-wait-friend').show();
             gameStats();
             startGame(null);
           }
         });
-      });
-    };
+      }
+    });
 
     var register = function () {
       if (false !== registered)
         return;
 
-      io.send(JSON.stringify({ event: 'register', hash: userHash }));
-      registered = true;
-    };
-
-    var startGame = function (hash) {
-      var io = window.io;
-      register();
-
-      if ('undefined' === typeof hash)
-        io.send(JSON.stringify({ event: 'find-opponent' }));
-      else if (null !== hash)
-        io.send(JSON.stringify({ event: 'play-friend', hash: hash }));
+      window.io.send(JSON.stringify({ event: 'register', hash: userHash }));
 
       window._io = {
         listeners: [],
@@ -123,11 +118,11 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       };
 
-      io.onopen = function() {
+      window.io.onopen = function () {
         console.log('sockjs: open');
       };
 
-      io.onmessage = function(event) {
+      window.io.onmessage = function (event) {
         var msg = JSON.parse(event.data);
         console.log('message:', msg);
 
@@ -145,6 +140,16 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       };
 
+      window.io.onclose = function () {
+        console.log('sockjs: close');
+      };
+
+      registered = true;
+    };
+
+    var startGame = function (hash) {
+      register();
+
       /* Socket Listeners! */
       window._io.addListener(function (msg) {
         if (msg.player && msg.size && msg.startCells) {
@@ -155,9 +160,27 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       });
 
+      // wait for random opponent
+      if ('undefined' === typeof hash) {
+        window.io.send(JSON.stringify({ event: 'find-opponent' }));
+
+      // find your friend with its hash
+      } else if (null !== hash) {
+        window.io.send(JSON.stringify({ event: 'play-friend', hash: hash }));
+
+      // wait for your friend to find you and give its own hash
+      } else {
+        window._io.addOneTimeListener(function (msg) {
+          friendHash = msg.friendHash;
+        }, function (msg) {
+          return 'undefined' !== typeof msg.friendHash;
+        });
+      }
+
       window._io.addOneTimeListener(function (msg) {
         $('#player-msg .actions').fadeOut();
-        $('#player-msg .live').html('Opponent Found!');
+        $('#player-msg .live').fadeIn();
+        $('#player-msg .live').html('<div style="text-align:center">Opponent Found!</div>');
 
         setTimeout(function () {
           window._io.player = {};
@@ -170,7 +193,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
           var countdown = setInterval(function () {
             // Countdown messages
-            $('#player-msg .live').html('<div style="text-align: center">Game Will start in <strong>' + times + '</strong></div>');
+            $('#player-msg .live').html('<div style="text-align:center">Game Will start in <strong>' + times + '</strong></div>');
             times--;
 
             if (times === -1) {
@@ -178,40 +201,10 @@ document.addEventListener("DOMContentLoaded", function () {
               clearInterval(userNumInterval);
               userNumInterval = false;
 
-              $('#player-msg .live').html('<div style="text-align: center"><strong> BEGIN!</strong></div>');
-              var localManager = new GameManager({size: window._gameBoard.size, startTiles: window._gameBoard.startTiles, player: window._gameBoard.player, otherPlayer: opposingPlayer, online: false}, KeyboardInputManager, HTMLActuator, io),
-              onlineManager = new GameManager({size: window._gameBoard.size, startTiles: window._gameBoard.startTiles, player: opposingPlayer, otherPlayer: window._gameBoard.player, online: true}, OnlineInputManager, HTMLActuator, io);
+              $('#player-msg .live').html('<div style="text-align:center"><strong> BEGIN!</strong></div>');
 
-              var gameOver = function (timer, message) {
-                message = message || 'Game over!';
-                clearInterval(timer);
-                gameStats();
-
-                $('#player-msg .live').html('<div id="timer"><strong>' + message + '</strong></div>');
-                window._io.gameOver = true;
-
-                localManager.actuate();
-                onlineManager.actuate();
-
-                setTimeout(function () {
-                  $('#player-msg .live').fadeOut();
-                }, 1000);
-
-                setTimeout(function () {
-                  $('#player-msg .live').html('');
-                  $('#player-msg .actions').fadeIn();
-                }, 1500);
-
-                setTimeout(function () {
-                  startNewGame();
-
-                  window._io.clearListeners();
-                  $('.game-start-btn').on('click', function () {
-                    localManager.restart();
-                    onlineManager.restart();
-                  });
-                }, 3000);
-              };
+              window.localManager = new GameManager({size: window._gameBoard.size, startTiles: window._gameBoard.startTiles, player: window._gameBoard.player, otherPlayer: opposingPlayer, online: false}, KeyboardInputManager, HTMLActuator, io);
+              window.onlineManager = new GameManager({size: window._gameBoard.size, startTiles: window._gameBoard.startTiles, player: opposingPlayer, otherPlayer: window._gameBoard.player, online: true}, OnlineInputManager, HTMLActuator, io);
 
               var gameTimeLeft = window.Config.defaultGameDuration; //game timer
 
@@ -234,9 +227,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
               }, 750);
 
-              window._io.addOneTimeListener(function (msg) {
-              gameOver(timer);
-
+              window._io.addOneTimeListener(function () {
+                gameOver(timer);
               }, function (msg) {
                 return !!msg.gameEnd;
               });
@@ -246,10 +238,53 @@ document.addEventListener("DOMContentLoaded", function () {
       }, function (msg) {
         return !!msg.start;
       });
+    };
 
-      io.onclose = function () {
-        console.log('sockjs: close');
-      };
+    var gameOver = function (timer, message) {
+      message = message || 'Game over!';
+      clearInterval(timer);
+      gameStats();
+
+      $('#player-msg .live').html('<div id="timer"><strong>' + message + '</strong></div>');
+      window._io.gameOver = true;
+
+      window.localManager.actuate();
+      window.onlineManager.actuate();
+
+      setTimeout(function () {
+        $('#player-msg .live').fadeOut();
+      }, 1000);
+
+      setTimeout(function () {
+        if (friendGame) {
+          $('.action-wait-friend').hide();
+
+          if (friendHash) {
+            $('.action-again-friend').show();
+          }
+        }
+
+        $('#player-msg .actions').fadeIn();
+      }, 1500);
+
+      setTimeout(function () {
+        window._io.clearListeners();
+
+        window._io.addOneTimeListener(function () {
+          window.localManager.restart();
+          window.onlineManager.restart();
+        }, function (msg) {
+          return !!msg.start || 'undefined' !== typeof msg.newFriendGame;
+        });
+
+        window._io.addOneTimeListener(function () {
+          window.localManager.restart();
+          window.onlineManager.restart();
+          startGame(null);
+        }, function (msg) {
+          return 'undefined' !== typeof msg.newFriendGame;
+        });
+      }, 3000);
     };
 
     var gameStats = function () {
@@ -268,6 +303,25 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     $('#your-hash strong').text(userHash);
+
+    var startNewGame = function () {
+      $('.game-start-btn').on('click', function () {
+        $('#player-msg').removeClass('text-center');
+        $('#player-msg .actions').fadeOut();
+        $('#player-msg .live').fadeIn();
+        $('#player-msg .live').html('<div style="text-align:center">Searching for competitor...</div>');
+        gameStats();
+        startGame();
+      });
+
+      $('.action-again-friend a').on('click', function () {
+        window.io.send(JSON.stringify({ event: 'play-friend', hash: friendHash }));
+        window.localManager.restart();
+        window.onlineManager.restart();
+        startGame(null);
+      });
+    };
+
     startNewGame();
   });
 });

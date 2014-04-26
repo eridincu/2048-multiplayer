@@ -28,9 +28,19 @@
         <div style="position: relative; left: -50%">
           <p id="player-msg" style="width: 575px; height: 30px" class="text-center">
             <span class="actions" style="width: 100%;">
-              <a id="game-start-btn-simple" class="game-start-btn btn">Find a Competitor</a>
-              <a id="game-start-btn-friend" class="game-friend-btn btn">Play with a Friend</a>
-              <span id="your-hash">Your hash: <strong></strong></span>
+
+              <span class="action-random" style="display:none;">
+                <a id="game-start-btn-simple" class="game-start-btn btn">Find a new Competitor</a>
+              </span>
+
+              <span class="action-again-friend" style="display:none;">
+                <a id="game-start-btn-friend" class="game-friend-btn btn">Play again</a>
+              </span>
+
+              <span class="action-wait-friend" style="display:none;">
+                <span id="your-hash">Give your hash <strong></strong> to your friend to start!</span>
+              </span>
+
             </span>
             <span class="live" style="width: 100%;"></span>
           </p>
