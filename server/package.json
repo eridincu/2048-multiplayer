@@ -12,27 +12,17 @@
   "scripts": {
     "start": "node app"
   },
-  "main": "./lib/http-server",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nodejitsu/http-server.git"
-  },
-  "keywords": [
-    "cli",
-    "http",
-    "server"
-  ],
   "dependencies": {
-    "primus": "*",
     "async": "*",
-    "ws": "*",
+    "engine.io": "^6.1.1",
+    "lodash": "~2.4.1",
+    "node-uuid": "~1.4.1",
+    "primus": "*",
     "rbytes": "*",
     "sockjs": "~0.3.8",
     "websocket-multiplex": "~0.1.0",
-    "node-uuid": "~1.4.1",
-    "lodash": "~2.4.1",
-    "engine.io": "~1.0.4",
-    "winston": "~0.7.2"
+    "winston": "~0.7.2",
+    "ws": "*"
   },
   "license": "MIT",
   "engines": {

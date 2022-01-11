@@ -1,6 +1,10 @@
 'use strict';
 
+const { PubSub } = require('@google-cloud/pubsub'), ;
+const { channel } = require('diagnostics_channel');
 
+// const projectId = 'my-project-id'
+// const pubsub = new PubSub({ projectId });
 /* 
 	GameLobby constructs a new game lobby
 	id - uuid of game loby
@@ -14,6 +18,10 @@ function GameLobby (id, gamer1, gamer2, startCells, size, cleanup) {
 	this.startCells = startCells;
 	this.size = size;
 	this.cleanup = cleanup;
+
+	// const [topic] = await pubsub.createTopic(id)
+	// console.log('PubSub Topic ', id, ' created for the match.')
+	// console.log(topic)
 
 	this.setup(gamer1, 1);
 	this.setup(gamer2, 2);
